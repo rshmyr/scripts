@@ -1,0 +1,47 @@
+## Archivierung der Modelle ecmwf, eps, gfh, gfs von lv10 nach lv11 ##
+21 2 * * * /home/netuser/Work/bin/archive_all_models.sh # Logs werden direkt erzeugt in /home/netuser/logs/archiv_model.log
+
+#DWD Unwetterwarnungen vom ftp1 syncen
+*/15 * * * * /home/netuser/Work/bin/get_warnings.sh > /home/netuser/log/get_warnings.log 2>&1
+
+# ECMWH Gribse im Archiv Verzeichnis packen, damit das Backup nicht die grossen Dateien schreibt.
+#45	7,8,9,19,20,21	*	*	*	cd /mnt/NAS/NA_ARCHIV/ecmwh ; for i in `ls *.grb` ; do nice pbzip2 -f -p2 $i ; done >> /tmp/ecmwh_pbzip.log 2>&1
+
+# Sync von Xen Cluster Metadaten nach /export/lv01/backup/xen...
+#30	13	*	*	*	/home/netuser/Work/xenbackup/make_meta_backup.sh >> /home/netuser/Work/xenbackup/make_meta_backup.log 2>&1
+
+#sync sage backup to lv01
+#22	22	*	*	*	/home/netuser/Work/bin/sagebackup.sh > /tmp/sagebackup.log 2>&1
+
+#move old euro4 runs from lv00 to lv10 (deactivated DG 2016-10-11)
+#22	2	*	*	*	/home/netuser/Work/bin/move_euro4.sh > /tmp/move_euro4.log 2>&1
+
+##cleanup old euro4_4km files. only files with "small" in filename required for WLP
+15	2	*	*	*	/home/netuser/Work/bin/clean_euro4_4km.sh > /tmp/clean_euro4_4km.log 2>&1
+
+###cleanup old hirlam runs
+22	22	*	*	*	/home/netuser/Work/bin/clean_hirlam.sh > /tmp/clean_hirlam.log 2>&1
+
+# cleanup old wrp.ph runs
+22	23	*	*	*	/home/netuser/Work/bin/clean_wrf_ph.sh > /tmp/clean_wrf_ph.log 2>&1
+
+# Compress FR Radar
+55 0,1 * * *	find /export/lv00/radar/radar_fr -maxdepth 1 -type f -name "radar*.pgm" -exec gzip '{}' \;  > /tmp/compress_fr_radar.log 2>&2
+
+# Housekeeping UKMOHI
+55 2 * * * 	find /export/lv00/ukmo_hi -ctime +10 -name "ukmo*.tar.gz" -delete > /dev/null 2>&1
+
+#S3 uploads
+00 3 * * * /home/netuser/Work/bin/archive_data_to_s3-glacier.sh
+
+# archive mosmix 12z runs
+0 11 * * * rsync -a /mnt/NAS/NA_ARCHIV/mosmix_archiv/*120000mos_mix_prog_for_db.fpg.gz /mnt/NAS/NA_ARCHIV/mosmix_archiv_12z/
+
+# cleanup old mosmix runs
+0 13 * * * find /mnt/NAS/NA_ARCHIV/mosmix_archiv -type f -name "*00mos_mix_prog_for_db.fpg.gz" -mtime +14 -delete
+
+# cleanup old backups
+0 13 * * * for MODEL in climate_cast_backup ensecm_charts_backup ensecm-mos_prognose_backup ezhighres-mos_prognose_backup ezhighres-shopping_prognose_backup ez-mos_prognose_backup ez-shopping_prognose_backup gem-mos_prognose_backup gfh-mos_prognose_backup long_term_mix_prognose_backup mosmix-shopping_prognose_backup ukmo-mos_prognose_backup ukmo-shopping_prognose_backup ukna-mos_prognose_backup uknx-dmo_prognose_backup; do; find /export/lv10/mm-${MODEL} -type f -name '*.gz' -mtime +90 -delete; done
+
+# cleanup old sat images
+0 14 * * * find /export/archiv/verschiedenes/sat/khorosho/satpics -type f -mtime +30 -delete
